@@ -1,11 +1,11 @@
-use std::ops::{AddAssign, Div, Mul, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
-use crate::vector::Normed;
+use crate::{compute_method::WithMassive, vector::Normed};
 
 /// A brute-force [`ComputeMethod`](super::ComputeMethod) using the CPU.
 pub struct BruteForce;
 
-impl<T, S> super::ComputeMethod<T, S> for BruteForce
+impl<T, S> super::ComputeMethod<Vec<(T, S)>> for BruteForce
 where
     T: Copy
         + Default
@@ -18,9 +18,10 @@ where
     S: Copy + Default + PartialEq + Mul<Output = S>,
 {
     #[inline]
-    fn compute(&mut self, particles: &[(T, S)]) -> Vec<T> {
-        let (massive, massless): (Vec<_>, Vec<_>) =
-            particles.iter().partition(|(_, mu)| *mu != S::default());
+    fn compute(&mut self, storage: Vec<(T, S)>) -> Vec<T> {
+        let (massive, massless) = storage
+            .iter()
+            .partition::<Vec<_>, _>(|(_, mu)| *mu != S::default());
 
         let massive_len = massive.len();
 
@@ -54,7 +55,7 @@ where
             (accelerations.into_iter(), remainder.into_iter())
         };
 
-        particles
+        storage
             .iter()
             .filter_map(|(_, mu)| {
                 if *mu != S::default() {
@@ -62,6 +63,48 @@ where
                 } else {
                     massless_acc.next()
                 }
+            })
+            .collect()
+    }
+}
+
+/// A brute-force [`ComputeMethod`](super::ComputeMethod) using the CPU.
+///
+/// This differs from [`BruteForce`] by not iterating over the combinations of pair of particles, making it slower.
+pub struct BruteForceAlt;
+
+impl<T, S> super::ComputeMethod<WithMassive<T, S>> for BruteForceAlt
+where
+    T: Copy
+        + Default
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<S, Output = T>
+        + Div<S, Output = T>
+        + Normed<Output = S>,
+    S: Copy + Default + PartialEq + Mul<Output = S>,
+{
+    #[inline]
+    fn compute(&mut self, storage: WithMassive<T, S>) -> Vec<T> {
+        storage
+            .particles
+            .iter()
+            .map(|&(position1, _)| {
+                storage
+                    .massive
+                    .iter()
+                    .fold(T::default(), |acceleration, &(position2, mass2)| {
+                        let dir = position2 - position1;
+                        let mag_2 = dir.length_squared();
+
+                        let grav_acc = if mag_2 != S::default() {
+                            dir * mass2 / (mag_2 * T::sqrt(mag_2))
+                        } else {
+                            dir
+                        };
+
+                        acceleration + grav_acc
+                    })
             })
             .collect()
     }
@@ -79,7 +122,7 @@ pub struct BarnesHut<S> {
     pub theta: S,
 }
 
-impl<T, S, O> super::ComputeMethod<T, S> for BarnesHut<S>
+impl<T, S, O> super::ComputeMethod<WithMassive<T, S>> for BarnesHut<S>
 where
     T: Copy + Default,
     S: Copy + Default + PartialEq,
@@ -87,19 +130,14 @@ where
     Tree<O, (T, S)>: TreeBuilder<BoundingBox<T>, (T, S)> + TreeAcceleration<T, S>,
     BoundingBox<T>: BoundingBoxExtend<Vector = T, Orthant = O>,
 {
-    fn compute(&mut self, particles: &[(T, S)]) -> Vec<T> {
+    fn compute(&mut self, storage: WithMassive<T, S>) -> Vec<T> {
         let mut tree = Tree::default();
 
-        let massive: Vec<_> = particles
-            .iter()
-            .filter(|(_, mu)| *mu != S::default())
-            .copied()
-            .collect();
+        let bbox = BoundingBox::containing(storage.massive.iter().map(|p| p.0));
+        let root = tree.build_node(storage.massive, bbox);
 
-        let bbox = BoundingBox::containing(massive.iter().map(|p| p.0));
-        let root = tree.build_node(massive, bbox);
-
-        particles
+        storage
+            .particles
             .iter()
             .map(|&(position, _)| tree.acceleration_at(position, root, self.theta))
             .collect()

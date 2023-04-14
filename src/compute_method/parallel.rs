@@ -1,11 +1,11 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::vector::Normed;
+use crate::{compute_method::WithMassive, vector::Normed};
 
 /// A brute-force [`ComputeMethod`](super::ComputeMethod) using the CPU with [rayon](https://github.com/rayon-rs/rayon).
 pub struct BruteForce;
 
-impl<T, S> super::ComputeMethod<T, S> for BruteForce
+impl<T, S> super::ComputeMethod<WithMassive<T, S>> for BruteForce
 where
     T: Copy
         + Default
@@ -19,20 +19,17 @@ where
     S: Copy + Default + Sync + PartialEq + Mul<Output = S>,
 {
     #[inline]
-    fn compute(&mut self, particles: &[(T, S)]) -> Vec<T> {
+    fn compute(&mut self, storage: WithMassive<T, S>) -> Vec<T> {
         use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-        let massive: Vec<_> = particles
-            .iter()
-            .filter(|(_, mu)| *mu != S::default())
-            .collect();
-
-        particles
+        storage
+            .particles
             .par_iter()
             .map(|&(position1, _)| {
-                massive
+                storage
+                    .massive
                     .iter()
-                    .fold(T::default(), |acceleration, &&(position2, mass2)| {
+                    .fold(T::default(), |acceleration, &(position2, mass2)| {
                         let dir = position2 - position1;
                         let mag_2 = dir.length_squared();
 
@@ -61,7 +58,7 @@ pub struct BarnesHut<S> {
     pub theta: S,
 }
 
-impl<T, S, O> super::ComputeMethod<T, S> for BarnesHut<S>
+impl<T, S, O> super::ComputeMethod<WithMassive<T, S>> for BarnesHut<S>
 where
     O: Sync,
     T: Copy + Default + Send + Sync,
@@ -70,21 +67,16 @@ where
     Tree<O, (T, S)>: TreeBuilder<BoundingBox<T>, (T, S)> + TreeAcceleration<T, S>,
     BoundingBox<T>: BoundingBoxExtend<Vector = T, Orthant = O>,
 {
-    fn compute(&mut self, particles: &[(T, S)]) -> Vec<T> {
+    fn compute(&mut self, storage: WithMassive<T, S>) -> Vec<T> {
         use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
         let mut tree = Tree::default();
 
-        let massive: Vec<_> = particles
-            .iter()
-            .filter(|(_, mu)| *mu != S::default())
-            .copied()
-            .collect();
+        let bbox = BoundingBox::containing(storage.massive.iter().map(|p| p.0));
+        let root = tree.build_node(storage.massive, bbox);
 
-        let bbox = BoundingBox::containing(massive.iter().map(|p| p.0));
-        let root = tree.build_node(massive, bbox);
-
-        particles
+        storage
+            .particles
             .par_iter()
             .map(|&(position, _)| tree.acceleration_at(position, root, self.theta))
             .collect()

@@ -1,7 +1,7 @@
 use std::vec::IntoIter;
 
 use crate::{
-    compute_method::ComputeMethod,
+    compute_method::{ComputeMethod, ParticleStorage},
     particle::{IntoPointMass, Particle},
     vector::Vector,
 };
@@ -57,16 +57,17 @@ where
     /// assert_eq!(accelerations.next().unwrap(), (&mut (Vec2::ZERO, 1.0), Vec2::Y));
     /// ```
     #[inline]
-    fn accelerations<C>(self, cm: &mut C) -> Accelerations<P, DIM, P::Scalar, P::Vector>
+    fn accelerations<C, B>(self, cm: &mut C) -> Accelerations<P, DIM, P::Scalar, P::Vector>
     where
-        C: ComputeMethod<T, P::Scalar>,
+        C: ComputeMethod<B>,
+        B: ParticleStorage<InternalVector = T, Scalar = P::Scalar>,
     {
         let items: Vec<_> = self.collect();
-        let particles: Vec<_> = items.iter().map(|i| i.point_mass()).collect();
+        let particles = items.iter().map(|i| i.point_mass()).collect();
 
         Accelerations {
             iter: items.into_iter(),
-            accelerations: cm.compute(&particles).into_iter(),
+            accelerations: cm.compute(ParticleStorage::new(particles)).into_iter(),
         }
     }
 }
@@ -100,21 +101,22 @@ where
     /// assert_eq!(accelerations.next().unwrap(), (&mut [0.0, 0.0, 1.0], [0.0, 1.0]));
     /// ```
     #[inline]
-    fn map_accelerations<F, C>(
+    fn map_accelerations<F, C, B>(
         self,
         mut f: F,
         cm: &mut C,
     ) -> Accelerations<Self::Item, DIM, P::Scalar, P::Vector>
     where
         F: FnMut(&Self::Item) -> P,
-        C: ComputeMethod<T, P::Scalar>,
+        C: ComputeMethod<B>,
+        B: ParticleStorage<InternalVector = T, Scalar = P::Scalar>,
     {
         let items: Vec<_> = self.collect();
         let particles: Vec<_> = items.iter().map(|i| f(i).point_mass()).collect();
 
         Accelerations {
             iter: items.into_iter(),
-            accelerations: cm.compute(&particles).into_iter(),
+            accelerations: cm.compute(ParticleStorage::new(particles)).into_iter(),
         }
     }
 }

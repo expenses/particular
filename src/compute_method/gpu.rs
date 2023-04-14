@@ -1,6 +1,9 @@
 use glam::Vec3A;
 
-use super::wgpu::{setup_wgpu, WgpuData};
+use crate::compute_method::{
+    wgpu::{setup_wgpu, WgpuData},
+    WithMassive,
+};
 
 /// A brute-force [`ComputeMethod`](super::ComputeMethod) using the GPU with [wgpu](https://github.com/gfx-rs/wgpu).
 ///
@@ -13,17 +16,11 @@ pub struct BruteForce {
     wgpu_data: Option<WgpuData>,
 }
 
-impl super::ComputeMethod<Vec3A, f32> for BruteForce {
+impl super::ComputeMethod<WithMassive<Vec3A, f32>> for BruteForce {
     #[inline]
-    fn compute(&mut self, particles: &[(Vec3A, f32)]) -> Vec<Vec3A> {
-        let massive: Vec<_> = particles
-            .iter()
-            .copied()
-            .filter(|(_, mu)| *mu != 0.0)
-            .collect();
-
-        let particles_len = particles.len() as u64;
-        let massive_len = massive.len() as u64;
+    fn compute(&mut self, storage: WithMassive<Vec3A, f32>) -> Vec<Vec3A> {
+        let particles_len = storage.particles.len() as u64;
+        let massive_len = storage.massive.len() as u64;
 
         if massive_len == 0 {
             return Vec::new();
@@ -37,7 +34,7 @@ impl super::ComputeMethod<Vec3A, f32> for BruteForce {
 
         self.wgpu_data
             .get_or_insert_with(|| WgpuData::init(particles_len, massive_len, &self.device))
-            .write_particle_data(particles, &massive, &self.queue)
+            .write_particle_data(&storage.particles, &storage.massive, &self.queue)
             .compute_pass(&self.device, &self.queue)
             .read_accelerations(&self.device)
     }

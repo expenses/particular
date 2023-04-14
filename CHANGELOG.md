@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.1] - 2023-22-03
+## Unreleased - 2023-14-04
+
+### Breaking changes
+
+- `ComputeMethod` generic over a type implementing `ParticleStorage`.
+- `ComputeMethod::compute` expects a `ParticleStorage`.
+
+### Added
+
+- `ParticleStorage` trait.
+- `WithMassive` struct implementing `ParticleStorage` used for most available `ComputeMethods`.
+- `BruteForceAlt` `ComputeMethod`, slower algorithm not iterating over the combinations of pair of particles (but more flexible by using `WithMassive`).
+
+### Changed
+
+- `ComputeMethod` generic over a type implementing `ParticleStorage` instead of an internal vector and a scalar.
+- `ComputeMethod::compute` expects a `ParticleStorage`.
+
+## [0.5.1] - 2023-30-03
 
 ### Fixed
 
