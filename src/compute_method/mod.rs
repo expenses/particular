@@ -31,11 +31,11 @@ pub mod sequential;
 ///     }
 /// }
 /// ```
-pub trait ComputeMethod<T, S> {
+pub trait ComputeMethod<P, V, S> {
     /// Computes the acceleration of the particles.
     ///
     /// The returning vector should contain the acceleration of the particles in the same order they were input.
-    fn compute(&mut self, particles: &[(T, S)]) -> Vec<T>;
+    fn compute(&mut self, particles: &[(P, S)]) -> Vec<V>;
 }
 
 #[cfg(test)]
@@ -45,7 +45,7 @@ pub(crate) mod tests {
 
     pub fn acceleration_computation<C>(mut cm: C)
     where
-        C: ComputeMethod<Vec3A, f32>,
+        C: ComputeMethod<Vec3A, Vec3A, f32>,
     {
         let massive = vec![(Vec3A::splat(0.0), 2.0), (Vec3A::splat(1.0), 3.0)];
         let massless = vec![(Vec3A::splat(5.0), 0.0)];

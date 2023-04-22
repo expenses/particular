@@ -5,20 +5,20 @@ use crate::vector::Normed;
 /// A brute-force [`ComputeMethod`](super::ComputeMethod) using the CPU.
 pub struct BruteForce;
 
-impl<T, S> super::ComputeMethod<T, S> for BruteForce
+impl<P, S, V> super::ComputeMethod<P, V, S> for BruteForce
 where
-    T: Copy
+    P: Copy + Sub<Output = V>,
+    V: Copy
         + Default
         + AddAssign
         + SubAssign
-        + Sub<Output = T>
-        + Mul<S, Output = T>
-        + Div<S, Output = T>
+        + Mul<S, Output = V>
+        + Div<S, Output = V>
         + Normed<Output = S>,
     S: Copy + Default + PartialEq + Mul<Output = S>,
 {
     #[inline]
-    fn compute(&mut self, particles: &[(T, S)]) -> Vec<T> {
+    fn compute(&mut self, particles: &[(P, S)]) -> Vec<V> {
         let (massive, massless): (Vec<_>, Vec<_>) =
             particles.iter().partition(|(_, mu)| *mu != S::default());
 
@@ -27,11 +27,11 @@ where
         let concat = &[massive, massless].concat()[..];
         let len = concat.len();
 
-        let mut accelerations = vec![T::default(); len];
+        let mut accelerations = vec![V::default(); len];
 
         for i in 0..massive_len {
             let (pos1, mu1) = concat[i];
-            let mut acceleration = T::default();
+            let mut acceleration = V::default();
 
             for j in (i + 1)..len {
                 let (pos2, mu2) = concat[j];
@@ -39,7 +39,7 @@ where
                 let dir = pos2 - pos1;
                 let mag_2 = dir.length_squared();
 
-                let f = dir / (mag_2 * T::sqrt(mag_2));
+                let f = dir / (mag_2 * V::sqrt(mag_2));
 
                 acceleration += f * mu2;
                 accelerations[j] -= f * mu1;
@@ -79,7 +79,7 @@ pub struct BarnesHut<S> {
     pub theta: S,
 }
 
-impl<T, S, O> super::ComputeMethod<T, S> for BarnesHut<S>
+impl<T, S, O> super::ComputeMethod<T, T, S> for BarnesHut<S>
 where
     T: Copy + Default,
     S: Copy + Default + PartialEq,

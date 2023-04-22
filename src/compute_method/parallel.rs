@@ -5,21 +5,21 @@ use crate::vector::Normed;
 /// A brute-force [`ComputeMethod`](super::ComputeMethod) using the CPU with [rayon](https://github.com/rayon-rs/rayon).
 pub struct BruteForce;
 
-impl<T, S> super::ComputeMethod<T, S> for BruteForce
+impl<P, V, S> super::ComputeMethod<P, V, S> for BruteForce
 where
-    T: Copy
+    P: Copy + Sub<Output = V> + Send + Sync,
+    V: Copy
         + Default
         + Send
         + Sync
-        + Add<Output = T>
-        + Sub<Output = T>
-        + Mul<S, Output = T>
-        + Div<S, Output = T>
+        + Add<Output = V>
+        + Mul<S, Output = V>
+        + Div<S, Output = V>
         + Normed<Output = S>,
     S: Copy + Default + Sync + PartialEq + Mul<Output = S>,
 {
     #[inline]
-    fn compute(&mut self, particles: &[(T, S)]) -> Vec<T> {
+    fn compute(&mut self, particles: &[(P, S)]) -> Vec<V> {
         use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
         let massive: Vec<_> = particles
@@ -32,12 +32,12 @@ where
             .map(|&(position1, _)| {
                 massive
                     .iter()
-                    .fold(T::default(), |acceleration, &&(position2, mass2)| {
+                    .fold(V::default(), |acceleration, &&(position2, mass2)| {
                         let dir = position2 - position1;
                         let mag_2 = dir.length_squared();
 
                         let grav_acc = if mag_2 != S::default() {
-                            dir * mass2 / (mag_2 * T::sqrt(mag_2))
+                            dir * mass2 / (mag_2 * V::sqrt(mag_2))
                         } else {
                             dir
                         };
@@ -61,7 +61,7 @@ pub struct BarnesHut<S> {
     pub theta: S,
 }
 
-impl<T, S, O> super::ComputeMethod<T, S> for BarnesHut<S>
+impl<T, S, O> super::ComputeMethod<T, T, S> for BarnesHut<S>
 where
     O: Sync,
     T: Copy + Default + Send + Sync,

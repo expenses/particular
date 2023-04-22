@@ -13,7 +13,7 @@ pub struct BruteForce {
     wgpu_data: Option<WgpuData>,
 }
 
-impl super::ComputeMethod<Vec3A, f32> for BruteForce {
+impl super::ComputeMethod<Vec3A, Vec3A, f32> for BruteForce {
     #[inline]
     fn compute(&mut self, particles: &[(Vec3A, f32)]) -> Vec<Vec3A> {
         let massive: Vec<_> = particles

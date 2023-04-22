@@ -8,7 +8,7 @@ use particular::prelude::*;
 
 struct Dummy;
 
-impl ComputeMethod<Vector, f32> for Dummy {
+impl ComputeMethod<Vector, Vector, f32> for Dummy {
     fn compute(&mut self, particles: &[(Vector, f32)]) -> Vec<Vector> {
         vec![Vector::ZERO; particles.len()]
     }
@@ -20,7 +20,7 @@ pub struct Body {
     mu: f32,
 }
 
-fn get_acceleration(bodies: &[Body], cm: &mut impl ComputeMethod<glam::Vec3A, f32>) {
+fn get_acceleration(bodies: &[Body], cm: &mut impl ComputeMethod<glam::Vec3A, glam::Vec3A, f32>) {
     let _ = bodies.iter().accelerations(cm).collect::<Vec<_>>();
 }
 

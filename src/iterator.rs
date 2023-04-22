@@ -59,7 +59,7 @@ where
     #[inline]
     fn accelerations<C>(self, cm: &mut C) -> Accelerations<P, DIM, P::Scalar, P::Vector>
     where
-        C: ComputeMethod<T, P::Scalar>,
+        C: ComputeMethod<T, T, P::Scalar>,
     {
         let items: Vec<_> = self.collect();
         let particles: Vec<_> = items.iter().map(|i| i.point_mass()).collect();
@@ -107,7 +107,7 @@ where
     ) -> Accelerations<Self::Item, DIM, P::Scalar, P::Vector>
     where
         F: FnMut(&Self::Item) -> P,
-        C: ComputeMethod<T, P::Scalar>,
+        C: ComputeMethod<T, T, P::Scalar>,
     {
         let items: Vec<_> = self.collect();
         let particles: Vec<_> = items.iter().map(|i| f(i).point_mass()).collect();
